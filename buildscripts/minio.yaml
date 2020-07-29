@@ -1,0 +1,60 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: moss-minio
+spec:
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: moss
+        moss-component: minio
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+      volumes:
+      - name: local-ghome
+        hostPath:
+#          path: "/mnt/sda1/ghome"
+          path: "/ghome"
+      containers:
+      - name: moss-minio
+        image: minio/minio:RELEASE.2019-10-12T01-39-57Z
+        args:
+        - gateway
+        - nas
+        - /ghome
+        env:
+        - name: MINIO_ACCESS_KEY
+          value: "admin"
+        - name: MINIO_SECRET_KEY
+          value: "KLtmMug9BDvvRjlg"
+        - name: MINIO_USERNAME
+          value: "root"
+        - name: MINIO_GROUPNAME
+          value: "root"
+        - name: MINIO_ETCD_ENDPOINTS
+          value: "http://moss-etcd:2379"
+        ports:
+        - containerPort: 9000
+          name: client
+        volumeMounts:
+        - name: local-ghome
+          mountPath: "/ghome"
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: moss-minio
+spec:
+  type: NodePort
+  ports:
+  - port: 9000
+    targetPort: 9000
+    nodePort: 31900
+  selector:
+    app: moss
+    moss-component: minio

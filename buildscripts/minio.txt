@@ -1,0 +1,1 @@
+http://192.168.113.90:9002/get/v1/?cmd=list_objects&username=public&max_keys=999&recursive=1

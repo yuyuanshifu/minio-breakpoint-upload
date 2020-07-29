@@ -1,0 +1,11 @@
+logs/
+coverage/
+.idea/
+run/
+.DS_Store
+*.sw*
+*.un~
+run
+logs
+config.json*
+*.exe

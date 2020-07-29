@@ -1,0 +1,53 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: moss-api-server
+spec:
+  template:
+    metadata:
+      labels:
+        app: moss
+        moss-component: api-server
+    spec:
+      containers:
+      - name: moss-minio
+        image: 192.168.202.74:5000/moss/moss-api-server:lastest
+        env:
+        - name: MINIO_ADDRESS
+          value: "moss-minio:9000"
+        - name: MINIO_ACCESS_KEY_ID
+          value: "admin"
+        - name: MINIO_SECRET_ACCESS_KEY
+          value: "KLtmMug9BDvvRjlg "
+        - name: PORT
+          value: 8080
+        ports:
+        - containerPort: 8080
+          name: client
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 20
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 20
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: moss-api-server
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 31990
+  selector:
+    app: moss
+    moss-component: api-server

@@ -1,0 +1,68 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: moss-etcd
+spec:
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: moss
+        moss-component: etcd
+    spec:
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+      volumes:
+      - name: etcd-data
+        hostPath:
+          path: /data/minio-storage/etcd-data
+      containers:
+      - name: storage-etcd
+        image: tensionliu/etcd:v3.3.9
+        command:
+        - /usr/local/bin/etcd
+        - --name
+        - s1
+        - --data-dir
+        - /etcd-data
+        - --listen-client-urls
+        - http://0.0.0.0:2379
+        - --advertise-client-urls
+        - http://0.0.0.0:2379
+        - --listen-peer-urls
+        - http://0.0.0.0:2380
+        - --initial-advertise-peer-urls
+        - http://0.0.0.0:2380
+        - --initial-cluster
+        - s1=http://0.0.0.0:2380
+        - --initial-cluster-token
+        - tkn
+        - --initial-cluster-state
+        - new
+        ports:
+        - containerPort: 2379
+          name: "client"
+        - containerPort: 2380
+          name: "advertise"
+        volumeMounts:
+        - name: etcd-data
+          mountPath: "/etcd-data"
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: moss-etcd
+spec:
+  ports:
+  - port: 2379
+    targetPort: 2379
+    name: "client"
+  - port: 2380
+    targetPort: 2380
+    name: "advertise"
+  selector:
+    app: moss
+    moss-component: etcd

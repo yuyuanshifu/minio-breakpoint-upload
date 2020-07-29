@@ -1,0 +1,5 @@
+buildscripts/
+dockerscripts/
+.idea
+*.md
+Dockerfile*
