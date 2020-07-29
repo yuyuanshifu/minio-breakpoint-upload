@@ -7,5 +7,4 @@ run/
 *.un~
 run
 logs
-config.json*
 *.exe
