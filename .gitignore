@@ -1,4 +1,5 @@
-logs/
+log/
+latest_log
 coverage/
 .idea/
 run/
@@ -8,3 +9,4 @@ run/
 run
 logs
 *.exe
+main

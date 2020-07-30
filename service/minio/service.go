@@ -1,7 +1,6 @@
 package minio
 
 import (
-	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"oss/config"
@@ -61,17 +60,10 @@ func GetSuccessChunks(ctx *gin.Context) {
 			break
 		}
 
-		tmp, err := json.Marshal(fileChunk.CompletedParts)
-		if err != nil {
-			res = -1
-			logger.LOG.Error("json.Marshal failed:", err.Error())
-			break
-		}
-
 		uuid = fileChunk.UUID
 		uploaded = strconv.Itoa(fileChunk.IsUploaded)
 		uploadID = fileChunk.UploadID
-		chunks = string(tmp)
+		chunks = fileChunk.CompletedParts
 	}
 
 	ctx.JSON(200, map[string]string{
@@ -224,7 +216,7 @@ func UpdateMultipart(ctx *gin.Context) {
 			break
 		}
 
-		fileChunk.CompletedParts = append(fileChunk.CompletedParts, strconv.Itoa(partNumber) + "-" + strings.Replace(etag, "\"","", -1))
+		fileChunk.CompletedParts += strconv.Itoa(partNumber) + "-" + strings.Replace(etag, "\"","", -1) + ","
 
 		err = models.UpdateFileChunk(fileChunk)
 		if err != nil {
@@ -266,7 +258,7 @@ func genMultiPartSignedUrl(uuid string, uploadId string, partNumber int, partSiz
 
 }
 
-func completeMultiPartUpload(uuid string, uploadID string, complParts []string) (string, error){
+func completeMultiPartUpload(uuid string, uploadID string, complParts string) (string, error){
 	_, core, _, err := getClients()
 	if err != nil {
 		logger.LOG.Error("getClients failed:", err.Error())
@@ -277,13 +269,13 @@ func completeMultiPartUpload(uuid string, uploadID string, complParts []string) 
 	objectName := strings.TrimPrefix(path.Join(config.MinioBasePath, path.Join(uuid[0:1], uuid[1:2], uuid)), "/")
 
 	var complMultipartUpload completeMultipartUpload
-	for _,part := range complParts {
+	for _,part := range strings.Split(complParts, ",") {
 		partNumber, err := strconv.Atoi(strings.Split(part,"-")[0])
 		if err != nil {
 			logger.LOG.Error(err.Error())
 			return "",err
 		}
-		complMultipartUpload.Parts =append(complMultipartUpload.Parts, miniov6.CompletePart{
+		complMultipartUpload.Parts = append(complMultipartUpload.Parts, miniov6.CompletePart{
 			PartNumber: partNumber,
 			ETag: strings.Split(part,"-")[1],
 		})

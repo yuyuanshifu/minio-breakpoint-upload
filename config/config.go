@@ -52,7 +52,7 @@ func loadFromConfigFile(configFilePath string)error{
 	PORT = jsonConfig.Get("PORT").ToString()
 	MinioAddress = jsonConfig.Get("MINIO_ADDRESS").ToString()
 	MinioAccessKeyId = jsonConfig.Get("MINIO_ACCESS_KEY_ID").ToString()
-	keyTmp := jsonConfig.Get("MinioSecretAccessKey").ToString()
+	keyTmp := jsonConfig.Get("MINIO_SECRET_ACCESS_KEY").ToString()
 	MinioSecure = jsonConfig.Get("MINIO_SECURE").ToString()
 	MinioBucket = jsonConfig.Get("MINIO_BUCKET").ToString()
 	MinioBasePath = jsonConfig.Get("MINIO_BASE_PATH").ToString()
@@ -78,7 +78,7 @@ func loadFromConfigFile(configFilePath string)error{
 }
 
 func init(){
-	configFile := ""
+	configFile := "config.json"
 	err:= loadFromConfigFile(configFile)
 	if nil != err{
 		logger.LOG.Fatal("Failed to load config,Error:" + err.Error())

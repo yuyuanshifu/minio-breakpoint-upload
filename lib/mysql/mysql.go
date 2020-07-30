@@ -37,7 +37,7 @@ func init() {
 		return
 	}
 
-	defer db.Close()
+	//defer db.Close()
 
 	db.SingularTable(true)
 
