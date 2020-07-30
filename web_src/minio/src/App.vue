@@ -28,7 +28,7 @@
       return {
         progress: 0,
         status: '初始状态',
-        urlPrex: 'http://192.168.207.34/minio',
+        urlPrex: 'http://192.168.207.34:39988/minio',
       }
     },
     created() {
