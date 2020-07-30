@@ -2,6 +2,7 @@ package main
 
 import (
 	"oss/config"
+	"oss/lib/cors"
 	logger "oss/lib/log"
 	minioService "oss/service/minio"
 
@@ -9,7 +10,8 @@ import (
 )
 
 func  main()  {
-	router := gin.Default()
+	router := gin.New()
+	router.Use(cors.Cors())
 
 	minio := router.Group("/minio")
 	{

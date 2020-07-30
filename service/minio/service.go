@@ -47,6 +47,7 @@ type completeMultipartUpload struct {
 func GetSuccessChunks(ctx *gin.Context) {
 	var res int
 	var uuid, uploaded, uploadID, chunks string
+
 	fileMD5 := ctx.Query("md5")
 	for {
 		fileChunk, err := models.GetFileChunkByMD5(fileMD5)
@@ -64,9 +65,13 @@ func GetSuccessChunks(ctx *gin.Context) {
 		uploaded = strconv.Itoa(fileChunk.IsUploaded)
 		uploadID = fileChunk.UploadID
 		chunks = fileChunk.CompletedParts
+
+		break
 	}
 
-	ctx.JSON(200, map[string]string{
+	logger.LOG.Info("GetSuccessChunks end")
+
+	ctx.JSON(200, gin.H{
 		"resultCode" : strconv.Itoa(res),
 		"uuid": uuid,
 		"uploaded": uploaded,
@@ -114,9 +119,11 @@ func NewMultipart(ctx *gin.Context) {
 			ctx.Error(errors.New("500"))
 			break
 		}
+
+		break
 	}
 
-	ctx.JSON(200, map[string]string{
+	ctx.JSON(200, gin.H{
 		"resultCode" : strconv.Itoa(res),
 		"uuid": uuid,
 		"uploadID":  uploadID,
@@ -146,9 +153,11 @@ func GetMultipartUploadUrl(ctx *gin.Context) {
 		}
 
 		logger.LOG.Info(url)
+
+		break
 	}
 
-	ctx.JSON(200, map[string]string{
+	ctx.JSON(200, gin.H {
 		"resultCode" : strconv.Itoa(res),
 		"url": url,
 	})
@@ -188,9 +197,11 @@ func CompleteMultipart(ctx *gin.Context) {
 			logger.LOG.Error("UpdateFileChunk failed:", err.Error())
 			break
 		}
+
+		break
 	}
 
-	ctx.JSON(200, map[string]string{
+	ctx.JSON(200, gin.H{
 		"resultCode" : strconv.Itoa(res),
 	})
 }
@@ -224,9 +235,11 @@ func UpdateMultipart(ctx *gin.Context) {
 			logger.LOG.Error("UpdateFileChunk failed:", err.Error())
 			break
 		}
+
+		break
 	}
 
-	ctx.JSON(200, map[string]string{
+	ctx.JSON(200, gin.H{
 		"resultCode" : strconv.Itoa(res),
 	})
 }

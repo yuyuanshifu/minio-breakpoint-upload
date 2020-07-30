@@ -1,10 +1,9 @@
 package models
 
 import (
+	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	"oss/lib/mysql"
-
-	"github.com/jinzhu/gorm"
 )
 
 const (
@@ -15,18 +14,20 @@ const (
 type FileChunk struct {
 	//ID			  int64  `gorm:"PRIMARY_KEY;AUTO_INCREMENT"`
 	gorm.Model
+
 	UUID          string `gorm:"UNIQUE"`
 	Md5			  string `gorm:"INDEX"`
 	IsUploaded    int `gorm:"DEFAULT 0"`  // not uploaded: 0, uploaded: 1
 	UploadID   	  string	`gorm:"UNIQUE"`//minio upload id
 	TotalChunks   int
 	Size		  int64
-	CompletedParts		  string	`gorm:"type:text,DEFAULT """`// chunkNumber+etag eg: ,1-asqwewqe21312312.2-123hjkas
+	CompletedParts		  string	`gorm:"type:text"`// chunkNumber+etag eg: ,1-asqwewqe21312312.2-123hjkas
 }
 
 func init() {
 	if !mysql.Global.DB.HasTable(&FileChunk{}) {
 		mysql.Global.DB.CreateTable(&FileChunk{})
+
 	}
 	mysql.Global.DB.AutoMigrate(&FileChunk{})
 }

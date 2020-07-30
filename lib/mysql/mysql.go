@@ -40,6 +40,7 @@ func init() {
 	//defer db.Close()
 
 	db.SingularTable(true)
+	db.LogMode(true)
 
 	// SetMaxIdleCons 设置连接池中的最大闲置连接数。
 	db.DB().SetMaxIdleConns(10)
