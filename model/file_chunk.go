@@ -2,7 +2,7 @@ package models
 
 import (
 	"github.com/jinzhu/gorm"
-	"github.com/pkg/errors"
+
 	"oss/lib/mysql"
 )
 
@@ -16,7 +16,7 @@ type FileChunk struct {
 	gorm.Model
 
 	UUID          string `gorm:"UNIQUE"`
-	Md5			  string `gorm:"INDEX"`
+	Md5			  string `gorm:"UNIQUE"`
 	IsUploaded    int `gorm:"DEFAULT 0"`  // not uploaded: 0, uploaded: 1
 	UploadID   	  string	`gorm:"UNIQUE"`//minio upload id
 	TotalChunks   int
@@ -35,8 +35,8 @@ func init() {
 // GetFileChunkByMD5 returns fileChunk by given md5
 func GetFileChunkByMD5(md5 string) (*FileChunk, error) {
 	fileChunk := new(FileChunk)
-	if !mysql.Global.DB.Where("md5 = ?", md5).Find(&fileChunk).RecordNotFound(){
-		return fileChunk, errors.New("error")
+	if err := mysql.Global.DB.Where("md5 = ?", md5).Find(&fileChunk).Error; err != nil {
+		return fileChunk, err
 	}
 	return fileChunk, nil
 }
@@ -52,12 +52,17 @@ func GetFileChunkByUUID(uuid string) (*FileChunk, error) {
 
 // InsertFileChunk insert a record into file_chunk.
 func InsertFileChunk(fileChunk *FileChunk) (_ *FileChunk, err error) {
-	mysql.Global.DB.NewRecord(fileChunk)
+	if err := mysql.Global.DB.Create(fileChunk).Error; err != nil {
+		return fileChunk, err
+	}
 	return fileChunk,nil
 }
 
 // UpdateFileChunk updates the given fileChunk in database
 func UpdateFileChunk(fileChunk *FileChunk) error {
-	mysql.Global.DB.Model(&fileChunk).Where("uuid = ?", fileChunk.UUID).Update("is_uploaded", "completed_parts")
+	if err := mysql.Global.DB.Model(&fileChunk).Where("uuid = ?", fileChunk.UUID).
+		Updates(FileChunk{IsUploaded:fileChunk.IsUploaded, CompletedParts:fileChunk.CompletedParts}).Error; err != nil {
+		return err
+	}
 	return nil
 }

@@ -43,12 +43,13 @@
         onFileAdded(file) {
           this.progress=0;
           this.status='初始状态';
+          file.urlPrex = this.urlPrex;
           // 计算MD5
           this.computeMD5(file);
         },
         getSuccessChunks(file) {
           return new Promise((resolve, reject) => {
-            axios.get(this.urlPrex + '/get_chunks', {params :{
+            axios.get(file.urlPrex + '/get_chunks', {params :{
               md5: file.uniqueIdentifier,
             }}).then(function (response) {
               file.uploadID = response.data.uploadID;
@@ -66,7 +67,7 @@
         },
         newMultiUpload(file) {
           return new Promise((resolve, reject) => {
-            axios.get(this.urlPrex + '/new_multipart', {params :{
+            axios.get(file.urlPrex + '/new_multipart', {params :{
               totalChunkCounts: file.totalChunkCounts,
               md5: file.uniqueIdentifier,
               size: file.size,
@@ -107,7 +108,7 @@
 
           function getUploadChunkUrl(currentChunk, partSize) {
             return new Promise((resolve, reject) => {
-                axios.get(this.urlPrex + '/get_multipart_url', {params :{
+                axios.get(file.urlPrex + '/get_multipart_url', {params :{
                   uuid: file.uuid,
                   uploadID: file.uploadID,
                   size: partSize,
@@ -138,7 +139,7 @@
 
           function updateChunk(currentChunk) {
             return new Promise((resolve, reject) => {
-                axios.post(this.urlPrex + '/update_chunk', qs.stringify({
+                axios.post(file.urlPrex + '/update_chunk', qs.stringify({
                   uuid: file.uuid,
                   chunkNumber: currentChunk+1,
                   etag: etags[currentChunk]
@@ -177,7 +178,7 @@
 
           function completeUpload(){
             return new Promise((resolve, reject) => {
-                axios.post(this.urlPrex + '/complete_multipart', qs.stringify({
+                axios.post(file.urlPrex + '/complete_multipart', qs.stringify({
                   uuid: file.uuid,
                   uploadID: file.uploadID,
                   file_name: file.name,
@@ -219,7 +220,7 @@
                   console.log(`文件上传完成：${file.name} \n分片：${chunks} 大小:${file.size} 用时：${(new Date().getTime() - time)/1000} s`);
                   this.progress = 100;
                   this.status='上传完成';
-                  window.location.reload();
+                  //window.location.reload();
               }
             };
           }
@@ -286,13 +287,10 @@
             } else {
               if (file.uploaded == "1") {  //已上传成功
                 //秒传
-                if (file.attachID == "0") { //删除数据集记录，未删除文件
-                  await addAttachment(file);
-                }
                 console.log("文件已上传完成");
                 this.progress = 100;
                 this.status='上传完成';
-                window.location.reload();
+                //window.location.reload();
               } else {
                 //断点续传
                 this.multipartUpload(file);
@@ -301,7 +299,7 @@
 
             function addAttachment(file){
               return new Promise((resolve, reject) => {
-                axios.post(this.urlPrex + '/add', qs.stringify({
+                axios.post(file.urlPrex + '/add', qs.stringify({
                   uuid: file.uuid,
                   file_name: file.name,
                   size: file.size

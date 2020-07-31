@@ -30,7 +30,7 @@ func init() {
 		return
 	}
 
-	dbDriver := config.MysqlUsername + ":" + string(dec) + "@tcp(" + config.MysqlIp + ":" + config.MysqlPort + ")/" + config.MysqlDbName + "?charset=utf8"
+	dbDriver := config.MysqlUsername + ":" + string(dec) + "@tcp(" + config.MysqlIp + ":" + config.MysqlPort + ")/" + config.MysqlDbName + "?charset=utf8&parseTime=True&loc=Local"
 	db, err := gorm.Open("mysql", dbDriver)
 	if err != nil {
 		logger.LOG.Error("open db failed:" + err.Error())
