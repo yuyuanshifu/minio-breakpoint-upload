@@ -21,6 +21,7 @@ type FileChunk struct {
 	UploadID   	  string	`gorm:"UNIQUE"`//minio upload id
 	TotalChunks   int
 	Size		  int64
+	FileName	  string
 	CompletedParts		  string	`gorm:"type:text"`// chunkNumber+etag eg: ,1-asqwewqe21312312.2-123hjkas
 }
 

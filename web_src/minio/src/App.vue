@@ -71,7 +71,7 @@
               totalChunkCounts: file.totalChunkCounts,
               md5: file.uniqueIdentifier,
               size: file.size,
-              fileType: file.fileType
+              fileName: file.name
             }}).then(function (response) {
               file.uploadID = response.data.uploadID;
               file.uuid = response.data.uuid;
@@ -196,7 +196,7 @@
           var successParts = new Array();
           successParts = file.chunks.split(",");
           for (let i = 0; i < successParts.length; i++) {
-            successChunks[i] = successParts[i].split("-")[0].split("\"")[1];
+            successChunks[i] = successParts[i].split("-")[0];
           }
           
           var urls = new Array();
@@ -213,14 +213,14 @@
         
               if (currentChunk < chunks) {
                   console.log(`第${currentChunk}个分片上传完成, 开始第${currentChunk +1}/${chunks}个分片上传`);
-                  this.progress = Math.ceil(currentChunk / chunks)*100;
+                  this.progress = Math.ceil((currentChunk / chunks)*100);
                   await loadNext();
               } else {
                   await completeUpload();
                   console.log(`文件上传完成：${file.name} \n分片：${chunks} 大小:${file.size} 用时：${(new Date().getTime() - time)/1000} s`);
                   this.progress = 100;
                   this.status='上传完成';
-                  //window.location.reload();
+                  window.location.reload();
               }
             };
           }
@@ -290,7 +290,7 @@
                 console.log("文件已上传完成");
                 this.progress = 100;
                 this.status='上传完成';
-                //window.location.reload();
+                window.location.reload();
               } else {
                 //断点续传
                 this.multipartUpload(file);

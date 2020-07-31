@@ -2,6 +2,7 @@ package minio
 
 import (
 	"encoding/xml"
+	"net/http"
 	"oss/config"
 	"path"
 	"sort"
@@ -43,13 +44,6 @@ type completeMultipartUpload struct {
 	Parts   []miniov6.CompletePart `xml:"Part"`
 }
 
-type ReqUpdate struct {
-	Uuid	string
-	Etag	string
-	PartNumber	int
-
-}
-
 func GetSuccessChunks(ctx *gin.Context) {
 	var res int
 	var uuid, uploaded, uploadID, chunks string
@@ -71,7 +65,7 @@ func GetSuccessChunks(ctx *gin.Context) {
 		break
 	}
 
-	ctx.JSON(200, gin.H{
+	ctx.JSON(http.StatusOK, gin.H{
 		"resultCode" : strconv.Itoa(res),
 		"uuid": uuid,
 		"uploaded": uploaded,
@@ -81,193 +75,145 @@ func GetSuccessChunks(ctx *gin.Context) {
 }
 
 func NewMultipart(ctx *gin.Context) {
-	var res int
 	var uuid, uploadID string
 
-	for {
-		totalChunkCounts,err := strconv.Atoi(ctx.Query("totalChunkCounts"))
-		if err != nil {
-			res = -1
-			logger.LOG.Error("totalChunkCounts is illegal.")
-			break
-		}
-
-		if totalChunkCounts > minio_ext.MaxPartsCount || totalChunkCounts <= 0{
-			res = -1
-			logger.LOG.Errorf("totalChunkCounts(%d) is illegal.", totalChunkCounts)
-			break
-		}
-
-		fileSize,err := strconv.ParseInt(ctx.Query("size"), 10, 64)
-		if err != nil {
-			res = -1
-			logger.LOG.Error("size is illegal.")
-			break
-		}
-
-		if fileSize > minio_ext.MaxMultipartPutObjectSize || fileSize <= 0{
-			res = -1
-			logger.LOG.Errorf("fileSize(%u) is illegal.", fileSize)
-			break
-		}
-
-		uuid = gouuid.NewV4().String()
-		tmp, err := newMultiPartUpload(uuid)
-		if err != nil {
-			res = -1
-			logger.LOG.Errorf("newMultiPartUpload failed:", err.Error())
-			break
-		}
-
-		uploadID = tmp
-
-		_, err = models.InsertFileChunk(&models.FileChunk{
-			UUID:       uuid,
-			UploadID:   uploadID,
-			Md5:  		ctx.Query("md5"),
-			Size:		fileSize,
-			TotalChunks:totalChunkCounts,
-		})
-
-		if err != nil {
-			res = -1
-			logger.LOG.Error("InsertFileChunk failed:", err.Error())
-			break
-		}
-
-		break
+	totalChunkCounts,err := strconv.Atoi(ctx.Query("totalChunkCounts"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, "totalChunkCounts is illegal.")
+		return
 	}
 
-	ctx.JSON(200, gin.H{
-		"resultCode" : strconv.Itoa(res),
+	if totalChunkCounts > minio_ext.MaxPartsCount || totalChunkCounts <= 0{
+		ctx.JSON(http.StatusBadRequest, "totalChunkCounts is illegal.")
+		return
+	}
+
+	fileSize,err := strconv.ParseInt(ctx.Query("size"), 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, "size is illegal.")
+		return
+	}
+
+	if fileSize > minio_ext.MaxMultipartPutObjectSize || fileSize <= 0{
+		ctx.JSON(http.StatusBadRequest, "size is illegal.")
+		return
+	}
+
+	uuid = gouuid.NewV4().String()
+	uploadID, err = newMultiPartUpload(uuid)
+	if err != nil {
+		logger.LOG.Errorf("newMultiPartUpload failed:", err.Error())
+		ctx.JSON(http.StatusInternalServerError, "newMultiPartUpload failed.")
+		return
+	}
+
+	_, err = models.InsertFileChunk(&models.FileChunk{
+		UUID:       uuid,
+		UploadID:   uploadID,
+		Md5:  		ctx.Query("md5"),
+		Size:		fileSize,
+		FileName:   ctx.Query("fileName"),
+		TotalChunks:totalChunkCounts,
+	})
+
+	if err != nil {
+		logger.LOG.Error("InsertFileChunk failed:", err.Error())
+		ctx.JSON(http.StatusInternalServerError, "InsertFileChunk failed.")
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
 		"uuid": uuid,
 		"uploadID":  uploadID,
 	})
 }
 
 func GetMultipartUploadUrl(ctx *gin.Context) {
-	var res int
 	var url string
 	uuid := ctx.Query("uuid")
 	uploadID := ctx.Query("uploadID")
 
-	for {
-		partNumber,err := strconv.Atoi(ctx.Query("chunkNumber"))
-		if err != nil {
-			res = -1
-			logger.LOG.Errorf("chunkNumber is illegal:", err.Error())
-			break
-		}
-
-		size,err := strconv.ParseInt(ctx.Query("size"), 10, 64)
-		if err != nil {
-			res = -1
-			logger.LOG.Errorf("size is illegal:", err.Error())
-			break
-		}
-		if size > minio_ext.MinPartSize {
-			res = -1
-			logger.LOG.Errorf("chunk size(%u) is too big", size)
-			break
-		}
-
-		tmp,err := genMultiPartSignedUrl(uuid, uploadID, partNumber, size)
-		if err != nil {
-			res = -1
-			logger.LOG.Error("genMultiPartSignedUrl failed:", err.Error())
-			break
-		}
-
-		url = tmp
-
-		break
+	partNumber,err := strconv.Atoi(ctx.Query("chunkNumber"))
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, "chunkNumber is illegal.")
+		return
 	}
 
-	ctx.JSON(200, gin.H {
-		"resultCode" : strconv.Itoa(res),
+	size,err := strconv.ParseInt(ctx.Query("size"), 10, 64)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, "size is illegal.")
+		return
+	}
+	if size > minio_ext.MinPartSize {
+		ctx.JSON(http.StatusBadRequest, "size is illegal.")
+		return
+	}
+
+	url,err = genMultiPartSignedUrl(uuid, uploadID, partNumber, size)
+	if err != nil {
+		logger.LOG.Error("genMultiPartSignedUrl failed:", err.Error())
+		ctx.JSON(http.StatusInternalServerError, "genMultiPartSignedUrl failed.")
+		return
+	}
+
+
+	ctx.JSON(http.StatusOK, gin.H {
 		"url": url,
 	})
 }
 
 func CompleteMultipart(ctx *gin.Context) {
-	var res int
 	uuid := ctx.PostForm("uuid")
 	uploadID := ctx.PostForm("uploadID")
 
-	for {
-		fileChunk, err := models.GetFileChunkByUUID(uuid)
-		if err != nil {
-			res = -1
-			logger.LOG.Error("GetFileChunkByUUID failed:", err.Error())
-			break
-		}
-
-		if fileChunk == nil {
-			res = -1
-			logger.LOG.Errorf("the record in file_chunk is not found, uuid(%s)", uuid)
-			break
-		}
-
-		_, err = completeMultiPartUpload(uuid, uploadID, fileChunk.CompletedParts)
-		if err != nil {
-			res = -1
-			logger.LOG.Error("completeMultiPartUpload failed:", err.Error())
-			break
-		}
-
-		fileChunk.IsUploaded = models.FileUploaded
-
-		err = models.UpdateFileChunk(fileChunk)
-		if err != nil {
-			res = -1
-			logger.LOG.Error("UpdateFileChunk failed:", err.Error())
-			break
-		}
-
-		break
+	fileChunk, err := models.GetFileChunkByUUID(uuid)
+	if err != nil {
+		logger.LOG.Error("GetFileChunkByUUID failed:", err.Error())
+		ctx.JSON(http.StatusInternalServerError, "GetFileChunkByUUID failed.")
+		return
 	}
 
-	ctx.JSON(200, gin.H{
-		"resultCode" : strconv.Itoa(res),
+	_, err = completeMultiPartUpload(uuid, uploadID, fileChunk.CompletedParts)
+	if err != nil {
+		logger.LOG.Error("completeMultiPartUpload failed:", err.Error())
+		ctx.JSON(http.StatusInternalServerError, "completeMultiPartUpload failed.")
+		return
+	}
+
+	fileChunk.IsUploaded = models.FileUploaded
+
+	err = models.UpdateFileChunk(fileChunk)
+	if err != nil {
+		logger.LOG.Error("UpdateFileChunk failed:", err.Error())
+		ctx.JSON(http.StatusInternalServerError, "UpdateFileChunk failed.")
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
 	})
 }
 
 func UpdateMultipart(ctx *gin.Context) {
-	var res int
+	uuid := ctx.PostForm("uuid")
+	etag := ctx.PostForm("etag")
 
-	for {
-		uuid := ctx.PostForm("uuid")
-		etag := ctx.PostForm("etag")
-
-		fileChunk, err := models.GetFileChunkByUUID(uuid)
-		if err != nil {
-			res = -1
-			logger.LOG.Error("GetFileChunkByUUID failed:", err.Error())
-			break
-		}
-
-		if fileChunk == nil {
-			res = -1
-			logger.LOG.Errorf("the record in file_chunk is not found, uuid(%s)", uuid)
-			break
-		}
-
-		fileChunk.CompletedParts += ctx.PostForm("chunkNumber") + "-" + strings.Replace(etag, "\"","", -1) + ","
-
-		logger.LOG.Info(fileChunk.CompletedParts)
-
-		err = models.UpdateFileChunk(fileChunk)
-		if err != nil {
-			res = -1
-			logger.LOG.Error("UpdateFileChunk failed:", err.Error())
-			break
-		}
-
-		break
+	fileChunk, err := models.GetFileChunkByUUID(uuid)
+	if err != nil {
+		logger.LOG.Error("GetFileChunkByUUID failed:", err.Error())
+		ctx.JSON(http.StatusInternalServerError, "GetFileChunkByUUID failed.")
+		return
 	}
 
-	ctx.JSON(200, gin.H{
-		"resultCode" : strconv.Itoa(res),
+	fileChunk.CompletedParts += ctx.PostForm("chunkNumber") + "-" + strings.Replace(etag, "\"","", -1) + ","
+
+	err = models.UpdateFileChunk(fileChunk)
+	if err != nil {
+		logger.LOG.Error("UpdateFileChunk failed:", err.Error())
+		ctx.JSON(http.StatusInternalServerError, "UpdateFileChunk failed.")
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
 	})
 }
 
