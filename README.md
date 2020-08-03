@@ -1,4 +1,5 @@
 # minio-breakpoint-upload
+博客地址：https://blog.csdn.net/lmlm21/article/details/107768581  
 实现minio断点续传功能  
 有如下特点：  
 1、不暴露minio敏感信息  
