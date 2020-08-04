@@ -1,7 +1,10 @@
 # minio-breakpoint-upload
+完整实现minio分片上传、断点续传、秒传等功能。
+
 博客地址：https://blog.csdn.net/lmlm21/article/details/107768581  
-实现minio断点续传功能  
-有如下特点：  
+目前Minio官方并不直接提供断点续传的解决方案或者接口，但是我们可以对其接口进行改造以实现断点续传。  
+
+此方案有如下特点：  
 1、不暴露minio敏感信息  
 2、针对文件每一个分片生成相应的上传地址  
 3、文件直接从浏览器上传到minio，不经过后台  
