@@ -30,4 +30,4 @@ minio本身并没有提供断点续传的接口，但其实minio的PutObject上�
 1、根据文件分片生成上传地址  
 参考：https://github.com/singularityhub/sregistry/pull/298  
 上面这个方案是用python实现的。  
-在golang的sdk中，PutObject接口内部在上传文件时会对大文件进行分片，对于每一个分片都有一个requestMetadata.presignURL参数，将此参数设置为true的时候，将会生成一个对应的上传地址（上图中第五步有误，不是从minio中获取），使用此地址我们就可以在web页面将文件直接上传到minio。
+在golang的sdk中，PutObject接口内部在上传文件时会对大文件进行分片，对于每一个分片都有一个requestMetadata.presignURL参数，将此参数设置为true的时候，将会生成一个对应的上传地址，使用此地址我们就可以在web页面将文件直接上传到minio。
