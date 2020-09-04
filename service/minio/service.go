@@ -275,3 +275,44 @@ func completeMultiPartUpload(uuid string, uploadID string, complParts string) (s
 
 	return core.CompleteMultipartUpload(bucketName, objectName, uploadID, complMultipartUpload.Parts)
 }
+
+func GetPartInfos(ctx *gin.Context) {
+	uuid := ctx.Query("uuid")
+	uploadId := ctx.Query("uploadId")
+	logger.LOG.Info(uuid)
+	minioClient, _, client, err := getClients()
+	if err != nil {
+		logger.LOG.Error("getClients failed:", err.Error())
+		return
+	}
+
+	bucketName := config.MinioBucket
+	objectName := strings.TrimPrefix(path.Join(config.MinioBasePath, path.Join(uuid[0:1], uuid[1:2], uuid)), "/")
+	objectPrefix := strings.TrimPrefix(path.Join(config.MinioBasePath, path.Join(uuid[0:1], uuid[1:2])), "/")
+
+	// Create a done channel to control 'ListObjects' go routine.
+	doneCh := make(chan struct{})
+
+	// Indicate to our routine to exit cleanly upon return.
+	defer close(doneCh)
+	logger.LOG.Info(objectPrefix)
+	objectCh := minioClient.ListObjects(bucketName, objectName, false, doneCh)
+	logger.LOG.Info(objectCh)
+	for object := range objectCh {
+		if object.Err != nil {
+			logger.LOG.Info(object.Err)
+			return
+		}
+		logger.LOG.Info(object.ETag, object.Key)
+	}
+
+	partInfos, err := client.ListObjectParts(bucketName, objectName, uploadId)
+	if err != nil {
+		logger.LOG.Error("ListObjectParts failed:", err.Error())
+		return
+	}
+
+	for _, partInfo := range partInfos {
+		logger.LOG.Info(partInfo.PartNumber, partInfo.ETag)
+	}
+}

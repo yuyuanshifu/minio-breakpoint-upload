@@ -220,7 +220,7 @@
                   console.log(`文件上传完成：${file.name} \n分片：${chunks} 大小:${file.size} 用时：${(new Date().getTime() - time)/1000} s`);
                   this.progress = 100;
                   this.status='上传完成';
-                  window.location.reload();
+                  //window.location.reload();
               }
             };
           }
@@ -290,7 +290,7 @@
                 console.log("文件已上传完成");
                 this.progress = 100;
                 this.status='上传完成';
-                window.location.reload();
+                //window.location.reload();
               } else {
                 //断点续传
                 this.multipartUpload(file);

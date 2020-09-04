@@ -1,6 +1,8 @@
 package minio_ext
 
 import (
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -12,6 +14,7 @@ import (
 	"net/http/cookiejar"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"path"
 	"runtime"
 	"strconv"
@@ -24,23 +27,6 @@ import (
 	"github.com/minio/minio-go/v6/pkg/credentials"
 	"golang.org/x/net/publicsuffix"
 )
-
-// MaxRetry is the maximum number of retries before stopping.
-var MaxRetry = 10
-
-// MaxJitter will randomize over the full exponential backoff time
-const MaxJitter = 1.0
-
-// NoJitter disables the use of jitter for randomizing the exponential backoff time
-const NoJitter = 0.0
-
-// DefaultRetryUnit - default unit multiplicative per retry.
-// defaults to 1 second.
-const DefaultRetryUnit = time.Second
-
-// DefaultRetryCap - Each retry attempt never waits no longer than
-// this maximum time duration.
-const DefaultRetryCap = time.Second * 30
 
 // Global constants.
 const (
@@ -164,21 +150,6 @@ const (
 	BucketLookupPath
 )
 
-// List of AWS S3 error codes which are retryable.
-var retryableS3Codes = map[string]struct{}{
-	"RequestError":          {},
-	"RequestTimeout":        {},
-	"Throttling":            {},
-	"ThrottlingException":   {},
-	"RequestLimitExceeded":  {},
-	"RequestThrottled":      {},
-	"InternalError":         {},
-	"ExpiredToken":          {},
-	"ExpiredTokenException": {},
-	"SlowDown":              {},
-	// Add more AWS S3 codes here.
-}
-
 // awsS3EndpointMap Amazon S3 endpoint map.
 var awsS3EndpointMap = map[string]string{
 	"us-east-1":      "s3.dualstack.us-east-1.amazonaws.com",
@@ -252,16 +223,6 @@ var successStatus = []int{
 	http.StatusOK,
 	http.StatusNoContent,
 	http.StatusPartialContent,
-}
-
-// List of HTTP status codes which are retryable.
-var retryableHTTPStatusCodes = map[int]struct{}{
-	429:                            {}, // http.StatusTooManyRequests is not part of the Go 1.5 library, yet
-	http.StatusInternalServerError: {},
-	http.StatusBadGateway:          {},
-	http.StatusServiceUnavailable:  {},
-	http.StatusGatewayTimeout:      {},
-	// Add more HTTP status codes here.
 }
 
 // newBucketLocationCache - Provides a new bucket location cache to be
@@ -405,55 +366,6 @@ func New(endpoint, accessKeyID, secretAccessKey string, secure bool) (*Client, e
 		clnt.overrideSignerType = credentials.SignatureV4
 	}
 	return clnt, nil
-}
-
-// isHTTPStatusRetryable - is HTTP error code retryable.
-func isHTTPStatusRetryable(httpStatusCode int) (ok bool) {
-	_, ok = retryableHTTPStatusCodes[httpStatusCode]
-	return ok
-}
-
-// newRetryTimer creates a timer with exponentially increasing
-// delays until the maximum retry attempts are reached.
-func (c Client) newRetryTimer(maxRetry int, unit time.Duration, cap time.Duration, jitter float64, doneCh chan struct{}) <-chan int {
-	attemptCh := make(chan int)
-
-	// computes the exponential backoff duration according to
-	// https://www.awsarchitectureblog.com/2015/03/backoff.html
-	exponentialBackoffWait := func(attempt int) time.Duration {
-		// normalize jitter to the range [0, 1.0]
-		if jitter < NoJitter {
-			jitter = NoJitter
-		}
-		if jitter > MaxJitter {
-			jitter = MaxJitter
-		}
-
-		//sleep = random_between(0, min(cap, base * 2 ** attempt))
-		sleep := unit * time.Duration(1<<uint(attempt))
-		if sleep > cap {
-			sleep = cap
-		}
-		if jitter != NoJitter {
-			sleep -= time.Duration(c.random.Float64() * float64(sleep) * jitter)
-		}
-		return sleep
-	}
-
-	go func() {
-		defer close(attemptCh)
-		for i := 0; i < maxRetry; i++ {
-			select {
-			// Attempts start from 1.
-			case attemptCh <- i + 1:
-			case <-doneCh:
-				// Stop the routine.
-				return
-			}
-			time.Sleep(exponentialBackoffWait(i))
-		}
-	}()
-	return attemptCh
 }
 
 // Get - Returns a value of a given key if it exists.
@@ -1048,4 +960,141 @@ func (c Client) GenUploadPartSignedUrl(uploadID string, bucketName string, objec
 
 	signedUrl = req.URL.String()
 	return signedUrl,nil
+}
+
+
+// executeMethod - instantiates a given method, and retries the
+// request upon any error up to maxRetries attempts in a binomially
+// delayed manner using a standard back off algorithm.
+func (c Client) executeMethod(ctx context.Context, method string, metadata requestMetadata) (res *http.Response, err error) {
+	var isRetryable bool     // Indicates if request can be retried.
+	var bodySeeker io.Seeker // Extracted seeker from io.Reader.
+	var reqRetry = MaxRetry  // Indicates how many times we can retry the request
+
+	if metadata.contentBody != nil {
+		// Check if body is seekable then it is retryable.
+		bodySeeker, isRetryable = metadata.contentBody.(io.Seeker)
+		switch bodySeeker {
+		case os.Stdin, os.Stdout, os.Stderr:
+			isRetryable = false
+		}
+		// Retry only when reader is seekable
+		if !isRetryable {
+			reqRetry = 1
+		}
+
+		// Figure out if the body can be closed - if yes
+		// we will definitely close it upon the function
+		// return.
+		bodyCloser, ok := metadata.contentBody.(io.Closer)
+		if ok {
+			defer bodyCloser.Close()
+		}
+	}
+
+	// Create a done channel to control 'newRetryTimer' go routine.
+	doneCh := make(chan struct{}, 1)
+
+	// Indicate to our routine to exit cleanly upon return.
+	defer close(doneCh)
+
+	// Blank indentifier is kept here on purpose since 'range' without
+	// blank identifiers is only supported since go1.4
+	// https://golang.org/doc/go1.4#forrange.
+	for range c.newRetryTimer(reqRetry, DefaultRetryUnit, DefaultRetryCap, MaxJitter, doneCh) {
+		// Retry executes the following function body if request has an
+		// error until maxRetries have been exhausted, retry attempts are
+		// performed after waiting for a given period of time in a
+		// binomial fashion.
+		if isRetryable {
+			// Seek back to beginning for each attempt.
+			if _, err = bodySeeker.Seek(0, 0); err != nil {
+				// If seek failed, no need to retry.
+				return nil, err
+			}
+		}
+
+		// Instantiate a new request.
+		var req *http.Request
+		req, err = c.newRequest(method, metadata)
+		if err != nil {
+			errResponse := ToErrorResponse(err)
+			if isS3CodeRetryable(errResponse.Code) {
+				continue // Retry.
+			}
+			return nil, err
+		}
+
+		// Add context to request
+		req = req.WithContext(ctx)
+
+		// Initiate the request.
+		res, err = c.do(req)
+		if err != nil {
+			// For supported http requests errors verify.
+			if isHTTPReqErrorRetryable(err) {
+				continue // Retry.
+			}
+			// For other errors, return here no need to retry.
+			return nil, err
+		}
+
+		// For any known successful http status, return quickly.
+		for _, httpStatus := range successStatus {
+			if httpStatus == res.StatusCode {
+				return res, nil
+			}
+		}
+
+		// Read the body to be saved later.
+		errBodyBytes, err := ioutil.ReadAll(res.Body)
+		// res.Body should be closed
+		closeResponse(res)
+		if err != nil {
+			return nil, err
+		}
+
+		// Save the body.
+		errBodySeeker := bytes.NewReader(errBodyBytes)
+		res.Body = ioutil.NopCloser(errBodySeeker)
+
+		// For errors verify if its retryable otherwise fail quickly.
+		errResponse := ToErrorResponse(httpRespToErrorResponse(res, metadata.bucketName, metadata.objectName))
+
+		// Save the body back again.
+		errBodySeeker.Seek(0, 0) // Seek back to starting point.
+		res.Body = ioutil.NopCloser(errBodySeeker)
+
+		// Bucket region if set in error response and the error
+		// code dictates invalid region, we can retry the request
+		// with the new region.
+		//
+		// Additionally we should only retry if bucketLocation and custom
+		// region is empty.
+		if metadata.bucketLocation == "" && c.region == "" {
+			if errResponse.Code == "AuthorizationHeaderMalformed" || errResponse.Code == "InvalidRegion" {
+				if metadata.bucketName != "" && errResponse.Region != "" {
+					// Gather Cached location only if bucketName is present.
+					if _, cachedLocationError := c.bucketLocCache.Get(metadata.bucketName); cachedLocationError != false {
+						c.bucketLocCache.Set(metadata.bucketName, errResponse.Region)
+						continue // Retry.
+					}
+				}
+			}
+		}
+
+		// Verify if error response code is retryable.
+		if isS3CodeRetryable(errResponse.Code) {
+			continue // Retry.
+		}
+
+		// Verify if http status code is retryable.
+		if isHTTPStatusRetryable(res.StatusCode) {
+			continue // Retry.
+		}
+
+		// For all other cases break out of the retry loop.
+		break
+	}
+	return res, err
 }
