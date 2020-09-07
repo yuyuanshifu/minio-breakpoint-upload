@@ -56,7 +56,6 @@
               file.uuid = response.data.uuid;
               file.uploaded = response.data.uploaded;
               file.chunks = response.data.chunks;
-              file.attachID = response.data.attachID;
               resolve(response);
             }).catch(function (error) {
               console.log(error);
