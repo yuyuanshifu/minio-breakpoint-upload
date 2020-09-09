@@ -56,7 +56,6 @@
               file.uuid = response.data.uuid;
               file.uploaded = response.data.uploaded;
               file.chunks = response.data.chunks;
-              file.attachID = response.data.attachID;
               resolve(response);
             }).catch(function (error) {
               console.log(error);
@@ -164,7 +163,7 @@
                 await uploadMinio(urls[currentChunk], e);
                 if (etags[currentChunk] != "") {
                   //更新数据库：分片上传结果
-                  await updateChunk(currentChunk);
+                  //await updateChunk(currentChunk);
                 } else {
                   return;
                 }

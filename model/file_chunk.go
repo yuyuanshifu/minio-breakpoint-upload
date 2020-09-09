@@ -42,7 +42,7 @@ func GetFileChunkByMD5(md5 string) (*FileChunk, error) {
 	return fileChunk, nil
 }
 
-// GetAttachmentByID returns attachment by given id
+// GetFileChunkByUUID returns attachment by given uuid
 func GetFileChunkByUUID(uuid string) (*FileChunk, error) {
 	fileChunk := new(FileChunk)
 	if err := mysql.Global.DB.Where("uuid = ?", uuid).Find(&fileChunk).Error; err != nil {

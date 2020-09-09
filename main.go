@@ -20,7 +20,6 @@ func  main()  {
 		minio.GET("/get_multipart_url", minioService.GetMultipartUploadUrl)
 		minio.POST("/complete_multipart", minioService.CompleteMultipart)
 		minio.POST("/update_chunk", minioService.UpdateMultipart)
-		minio.GET("/get_part_infos", minioService.GetPartInfos)
 	}
 
 	router.Run(":" + config.PORT)

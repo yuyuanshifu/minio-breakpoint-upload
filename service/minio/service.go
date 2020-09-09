@@ -44,36 +44,6 @@ type completeMultipartUpload struct {
 	Parts   []miniov6.CompletePart `xml:"Part"`
 }
 
-func GetSuccessChunks(ctx *gin.Context) {
-	var res int
-	var uuid, uploaded, uploadID, chunks string
-
-	fileMD5 := ctx.Query("md5")
-	for {
-		fileChunk, err := models.GetFileChunkByMD5(fileMD5)
-		if err != nil {
-			res = -1
-			logger.LOG.Error("GetFileChunkByMD5 failed:", err.Error())
-			break
-		}
-
-		uuid = fileChunk.UUID
-		uploaded = strconv.Itoa(fileChunk.IsUploaded)
-		uploadID = fileChunk.UploadID
-		chunks = fileChunk.CompletedParts
-
-		break
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{
-		"resultCode" : strconv.Itoa(res),
-		"uuid": uuid,
-		"uploaded": uploaded,
-		"uploadID": uploadID,
-		"chunks": chunks,
-	})
-}
-
 func NewMultipart(ctx *gin.Context) {
 	var uuid, uploadID string
 
@@ -173,7 +143,7 @@ func CompleteMultipart(ctx *gin.Context) {
 		return
 	}
 
-	_, err = completeMultiPartUpload(uuid, uploadID, fileChunk.CompletedParts)
+	_, err = completeMultiPartUpload(uuid, uploadID)
 	if err != nil {
 		logger.LOG.Error("completeMultiPartUpload failed:", err.Error())
 		ctx.JSON(http.StatusInternalServerError, "completeMultiPartUpload failed.")
@@ -244,8 +214,8 @@ func genMultiPartSignedUrl(uuid string, uploadId string, partNumber int, partSiz
 
 }
 
-func completeMultiPartUpload(uuid string, uploadID string, complParts string) (string, error){
-	_, core, _, err := getClients()
+func completeMultiPartUpload(uuid string, uploadID string) (string, error){
+	_, core, client, err := getClients()
 	if err != nil {
 		logger.LOG.Error("getClients failed:", err.Error())
 		return "", err
@@ -254,19 +224,17 @@ func completeMultiPartUpload(uuid string, uploadID string, complParts string) (s
 	bucketName := config.MinioBucket
 	objectName := strings.TrimPrefix(path.Join(config.MinioBasePath, path.Join(uuid[0:1], uuid[1:2], uuid)), "/")
 
+	partInfos, err := client.ListObjectParts(bucketName, objectName, uploadID)
+	if err != nil {
+		logger.LOG.Error("ListObjectParts failed:", err.Error())
+		return "", err
+	}
+
 	var complMultipartUpload completeMultipartUpload
-	for _,part := range strings.Split(complParts, ",") {
-		if part == "" {
-			break
-		}
-		partNumber, err := strconv.Atoi(strings.Split(part,"-")[0])
-		if err != nil {
-			logger.LOG.Error(err.Error())
-			return "",err
-		}
+	for _, partInfo := range partInfos {
 		complMultipartUpload.Parts = append(complMultipartUpload.Parts, miniov6.CompletePart{
-			PartNumber: partNumber,
-			ETag: strings.Split(part,"-")[1],
+			PartNumber: partInfo.PartNumber,
+			ETag: partInfo.ETag,
 		})
 	}
 
@@ -276,43 +244,101 @@ func completeMultiPartUpload(uuid string, uploadID string, complParts string) (s
 	return core.CompleteMultipartUpload(bucketName, objectName, uploadID, complMultipartUpload.Parts)
 }
 
-func GetPartInfos(ctx *gin.Context) {
-	uuid := ctx.Query("uuid")
-	uploadId := ctx.Query("uploadId")
-	logger.LOG.Info(uuid)
-	minioClient, _, client, err := getClients()
+func GetSuccessChunks(ctx *gin.Context) {
+	var res = -1
+	var uuid, uploaded, uploadID, chunks string
+
+	fileMD5 := ctx.Query("md5")
+	for {
+		fileChunk, err := models.GetFileChunkByMD5(fileMD5)
+		if err != nil {
+			logger.LOG.Error("GetFileChunkByMD5 failed:", err.Error())
+			break
+		}
+
+		uuid = fileChunk.UUID
+		uploaded = strconv.Itoa(fileChunk.IsUploaded)
+		uploadID = fileChunk.UploadID
+
+		bucketName := config.MinioBucket
+		objectName := strings.TrimPrefix(path.Join(config.MinioBasePath, path.Join(uuid[0:1], uuid[1:2], uuid)), "/")
+
+		isExist, err := isObjectExist(bucketName, objectName)
+		if err != nil {
+			logger.LOG.Error("isObjectExist failed:", err.Error())
+			break
+		}
+
+		if isExist {
+			uploaded = "1"
+			if fileChunk.IsUploaded != models.FileUploaded {
+				logger.LOG.Info("the file has been uploaded but not recorded")
+				fileChunk.IsUploaded = 1
+				if err = models.UpdateFileChunk(fileChunk); err != nil {
+					logger.LOG.Error("UpdateFileChunk failed:", err.Error())
+				}
+			}
+			res = 0
+			break
+		} else {
+			uploaded = "0"
+			if fileChunk.IsUploaded == models.FileUploaded {
+				logger.LOG.Info("the file has been recorded but not uploaded")
+				fileChunk.IsUploaded = 0
+				if err = models.UpdateFileChunk(fileChunk); err != nil {
+					logger.LOG.Error("UpdateFileChunk failed:", err.Error())
+				}
+			}
+		}
+
+		_, _, client, err := getClients()
+		if err != nil {
+			logger.LOG.Error("getClients failed:", err.Error())
+			break
+		}
+
+		partInfos, err := client.ListObjectParts(bucketName, objectName, uploadID)
+		if err != nil {
+			logger.LOG.Error("ListObjectParts failed:", err.Error())
+			break
+		}
+
+		for _, partInfo := range partInfos {
+			chunks += strconv.Itoa(partInfo.PartNumber) + "-" + partInfo.ETag + ","
+		}
+
+		break
+	}
+
+	ctx.JSON(http.StatusOK, gin.H {
+		"resultCode" : strconv.Itoa(res),
+		"uuid": uuid,
+		"uploaded": uploaded,
+		"uploadID": uploadID,
+		"chunks": chunks,
+	})
+}
+
+func isObjectExist(bucketName string, objectName string) (bool, error) {
+	isExist := false
+	doneCh := make(chan struct{})
+	defer close(doneCh)
+
+	client, _, _, err := getClients()
 	if err != nil {
 		logger.LOG.Error("getClients failed:", err.Error())
-		return
+		return isExist, err
 	}
 
-	bucketName := config.MinioBucket
-	objectName := strings.TrimPrefix(path.Join(config.MinioBasePath, path.Join(uuid[0:1], uuid[1:2], uuid)), "/")
-	objectPrefix := strings.TrimPrefix(path.Join(config.MinioBasePath, path.Join(uuid[0:1], uuid[1:2])), "/")
-
-	// Create a done channel to control 'ListObjects' go routine.
-	doneCh := make(chan struct{})
-
-	// Indicate to our routine to exit cleanly upon return.
-	defer close(doneCh)
-	logger.LOG.Info(objectPrefix)
-	objectCh := minioClient.ListObjects(bucketName, objectName, false, doneCh)
-	logger.LOG.Info(objectCh)
+	objectCh := client.ListObjects(bucketName, objectName, false, doneCh)
 	for object := range objectCh {
 		if object.Err != nil {
-			logger.LOG.Info(object.Err)
-			return
+			logger.LOG.Error(object.Err)
+			return isExist, object.Err
 		}
-		logger.LOG.Info(object.ETag, object.Key)
+		isExist = true
+		break
 	}
 
-	partInfos, err := client.ListObjectParts(bucketName, objectName, uploadId)
-	if err != nil {
-		logger.LOG.Error("ListObjectParts failed:", err.Error())
-		return
-	}
-
-	for _, partInfo := range partInfos {
-		logger.LOG.Info(partInfo.PartNumber, partInfo.ETag)
-	}
+	return isExist, nil
 }
