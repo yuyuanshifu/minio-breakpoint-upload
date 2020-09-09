@@ -163,7 +163,7 @@
                 await uploadMinio(urls[currentChunk], e);
                 if (etags[currentChunk] != "") {
                   //更新数据库：分片上传结果
-                  await updateChunk(currentChunk);
+                  //await updateChunk(currentChunk);
                 } else {
                   return;
                 }

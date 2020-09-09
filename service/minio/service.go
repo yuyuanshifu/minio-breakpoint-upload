@@ -143,7 +143,7 @@ func CompleteMultipart(ctx *gin.Context) {
 		return
 	}
 
-	_, err = completeMultiPartUpload(uuid, uploadID, fileChunk.CompletedParts)
+	_, err = completeMultiPartUpload(uuid, uploadID)
 	if err != nil {
 		logger.LOG.Error("completeMultiPartUpload failed:", err.Error())
 		ctx.JSON(http.StatusInternalServerError, "completeMultiPartUpload failed.")
@@ -214,8 +214,8 @@ func genMultiPartSignedUrl(uuid string, uploadId string, partNumber int, partSiz
 
 }
 
-func completeMultiPartUpload(uuid string, uploadID string, complParts string) (string, error){
-	_, core, _, err := getClients()
+func completeMultiPartUpload(uuid string, uploadID string) (string, error){
+	_, core, client, err := getClients()
 	if err != nil {
 		logger.LOG.Error("getClients failed:", err.Error())
 		return "", err
@@ -224,19 +224,17 @@ func completeMultiPartUpload(uuid string, uploadID string, complParts string) (s
 	bucketName := config.MinioBucket
 	objectName := strings.TrimPrefix(path.Join(config.MinioBasePath, path.Join(uuid[0:1], uuid[1:2], uuid)), "/")
 
+	partInfos, err := client.ListObjectParts(bucketName, objectName, uploadID)
+	if err != nil {
+		logger.LOG.Error("ListObjectParts failed:", err.Error())
+		return "", err
+	}
+
 	var complMultipartUpload completeMultipartUpload
-	for _,part := range strings.Split(complParts, ",") {
-		if part == "" {
-			break
-		}
-		partNumber, err := strconv.Atoi(strings.Split(part,"-")[0])
-		if err != nil {
-			logger.LOG.Error(err.Error())
-			return "",err
-		}
+	for _, partInfo := range partInfos {
 		complMultipartUpload.Parts = append(complMultipartUpload.Parts, miniov6.CompletePart{
-			PartNumber: partNumber,
-			ETag: strings.Split(part,"-")[1],
+			PartNumber: partInfo.PartNumber,
+			ETag: partInfo.ETag,
 		})
 	}
 
@@ -311,8 +309,6 @@ func GetSuccessChunks(ctx *gin.Context) {
 
 		break
 	}
-
-	logger.LOG.Info(chunks)
 
 	ctx.JSON(http.StatusOK, gin.H {
 		"resultCode" : strconv.Itoa(res),
