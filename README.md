@@ -1,8 +1,6 @@
 # minio-breakpoint-upload
-完整实现minio分片上传、断点续传、秒传等功能。
-
-博客地址：https://blog.csdn.net/lmlm21/article/details/107768581  
-目前Minio官方并不直接提供断点续传的解决方案或者接口，但是我们可以对其接口进行改造以实现断点续传。  
+## 一、基本介绍  
+完整实现minio分片上传、断点续传、秒传等功能。  
 
 此方案有如下特点：  
 1、不暴露minio敏感信息  
@@ -10,7 +8,7 @@
 3、文件直接从浏览器上传到minio，不经过后台  
 4、部署简单，无须部署额外的类似于sts的服务  
 
-一、效果：  
+## 二、效果演示  
 1、上传页面  
 ![avatar](https://github.com/yuyuanshifu/minio-breakpoint-upload/blob/master/doc/%E4%B8%8A%E4%BC%A0%E9%A1%B5%E9%9D%A2.png)  
 2、前端上传日志  
@@ -18,16 +16,35 @@
 3、minio上传日志  
 ![avatar](https://github.com/yuyuanshifu/minio-breakpoint-upload/blob/master/doc/minio%E4%B8%8A%E4%BC%A0%E6%97%A5%E5%BF%97.png)  
 
-二、详细方案  
-https://github.com/minio/minio-go/issues/1324  
-minio本身并没有提供断点续传的接口，但其实minio的PutObject上传接口内部是实现了分片上传的，因此我们可以改造此接口以实现断点续传的功能。  
+## 三、使用说明  
+### web端  
+```bash
+cd web_src/minio/build
+npm run build
+```
+
+### server端
+```bash
+go build main.go
+```
+
+## 四、详细方案  
+minio官方并没有提供断点续传的方案，但  
+（1）minio的PutObject上传接口内部是实现了分片上传的，我们可以通过此接口封装出分片上传地址生成接口  
+（2）ListIncompleteUploads接口内部可以查询到已经上传成功的分片信息，包括分片的序号以及对应的etag，我们可以通过此接口封装出查询上传成功的分片信息接口  
+
 具体流程如下：  
 ![avatar](https://github.com/yuyuanshifu/minio-breakpoint-upload/blob/master/doc/%E6%96%B0%E6%96%B9%E6%A1%88%EF%BC%882020.09.09%EF%BC%89.png)
 
-流程可参考：https://www.cnblogs.com/xiahj/p/vue-simple-uploader.html 
 
-不同之处在于：  
-1、根据文件分片生成上传地址  
-参考：https://github.com/singularityhub/sregistry/pull/298  
-上面这个方案是用python实现的。  
-在golang的sdk中，PutObject接口内部在上传文件时会对大文件进行分片，对于每一个分片都有一个requestMetadata.presignURL参数，将此参数设置为true的时候，将会生成一个对应的上传地址，使用此地址我们就可以在web页面将文件直接上传到minio。
+## 四、更新日志  
+|  日期   | 日志  |
+|  :---:  | --- |
+|2020/08/03| 分片上传 断点续传 秒传 |
+|2020/09/09| 不再在mysql中记录分片上传结果以及etag |
+
+## 五、博客地址  
+> https://blog.csdn.net/lmlm21/article/details/107768581  
+
+## 六、联系方式  
+vx：lm3775859
