@@ -14,6 +14,7 @@ RUN \
 
 FROM alpine:3.9
 COPY --from=0 /usr/bin/minio-breakpoint-upload /usr/bin/minio-breakpoint-upload
+COPY --from=0 /usr/bin/config.json /usr/bin/config.json
 
 RUN chmod +x /usr/bin/minio-breakpoint-upload
 
