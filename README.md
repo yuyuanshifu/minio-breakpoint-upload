@@ -22,7 +22,7 @@
 https://github.com/minio/minio-go/issues/1324  
 minio本身并没有提供断点续传的接口，但其实minio的PutObject上传接口内部是实现了分片上传的，因此我们可以改造此接口以实现断点续传的功能。  
 具体流程如下：  
-![avatar](https://github.com/yuyuanshifu/minio-breakpoint-upload/blob/master/doc/minio.png)
+![avatar](https://github.com/yuyuanshifu/minio-breakpoint-upload/blob/master/doc/%E6%96%B0%E6%96%B9%E6%A1%88%EF%BC%882020.09.09%EF%BC%89.png)
 
 流程可参考：https://www.cnblogs.com/xiahj/p/vue-simple-uploader.html 
 
