@@ -1,6 +1,7 @@
 package minio_ext
 
 import (
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/xml"
 	"io"
@@ -10,7 +11,6 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-	"crypto/sha256"
 
 	"github.com/minio/minio-go/v6/pkg/s3utils"
 )
@@ -20,7 +20,6 @@ var regCred = regexp.MustCompile("Credential=([A-Z0-9]+)/")
 
 // regCred matches signature string in HTTP header
 var regSign = regexp.MustCompile("Signature=([[0-9a-f]+)")
-
 
 // xmlDecoder provide decoded value in xml.
 func xmlDecoder(body io.Reader, v interface{}) error {
@@ -44,6 +43,7 @@ func redactSignature(origAuth string) string {
 	// Strip out 256-bit signature from: Signature=<256-bit signature>
 	return regSign.ReplaceAllString(newAuth, "Signature=**REDACTED**")
 }
+
 // closeResponse close non nil response with any response Body.
 // convenient wrapper to drain any remaining data on response body.
 //

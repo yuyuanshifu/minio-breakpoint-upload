@@ -2,16 +2,21 @@ package main
 
 import (
 	"oss/config"
+	_ "oss/docs"
 	"oss/lib/cors"
 	logger "oss/lib/log"
 	minioService "oss/service/minio"
 
 	"github.com/gin-gonic/gin"
+	gs "github.com/swaggo/gin-swagger"
+	"github.com/swaggo/gin-swagger/swaggerFiles"
 )
 
 func  main()  {
 	router := gin.New()
 	router.Use(cors.Cors())
+
+	router.GET("/swagger/*any", gs.WrapHandler(swaggerFiles.Handler))
 
 	minio := router.Group("/minio")
 	{
