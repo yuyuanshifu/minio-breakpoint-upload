@@ -1,5 +1,9 @@
+basePath: /api/v1/
 info:
   contact: {}
+  description: This is a minio upload server.
   license: {}
+  title: minio-breakpoint-upload API
+  version: "1.0"
 paths: {}
 swagger: "2.0"

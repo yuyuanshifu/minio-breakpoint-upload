@@ -1,8 +1,12 @@
 {
     "swagger": "2.0",
     "info": {
+        "description": "This is a minio upload server.",
+        "title": "minio-breakpoint-upload API",
         "contact": {},
-        "license": {}
+        "license": {},
+        "version": "1.0"
     },
+    "basePath": "/api/v1/",
     "paths": {}
 }

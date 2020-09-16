@@ -12,6 +12,10 @@ import (
 	"github.com/swaggo/gin-swagger/swaggerFiles"
 )
 
+// @title minio-breakpoint-upload API
+// @version 1.0
+// @description  This is a minio upload server.
+// @BasePath /api/v1/
 func  main()  {
 	router := gin.New()
 	router.Use(cors.Cors())
