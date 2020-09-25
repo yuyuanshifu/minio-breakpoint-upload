@@ -10,11 +10,11 @@
 
 ## 二、效果演示  
 1、上传页面  
-![avatar](https://github.com/yuyuanshifu/minio-breakpoint-upload/blob/master/doc/%E4%B8%8A%E4%BC%A0%E9%A1%B5%E9%9D%A2.png)  
+![avatar](doc/%E4%B8%8A%E4%BC%A0%E9%A1%B5%E9%9D%A2.png)  
 2、前端上传日志  
-![avatar](https://github.com/yuyuanshifu/minio-breakpoint-upload/blob/master/doc/%E4%B8%8A%E4%BC%A0%E6%97%A5%E5%BF%97.png)  
+![avatar](doc/%E4%B8%8A%E4%BC%A0%E6%97%A5%E5%BF%97.png)  
 3、minio上传日志  
-![avatar](https://github.com/yuyuanshifu/minio-breakpoint-upload/blob/master/doc/minio%E4%B8%8A%E4%BC%A0%E6%97%A5%E5%BF%97.png)  
+![avatar](doc/minio%E4%B8%8A%E4%BC%A0%E6%97%A5%E5%BF%97.png)  
 
 ## 三、使用说明  
 ### web端  
@@ -34,7 +34,7 @@ minio官方并没有提供断点续传的方案，但
 （2）ListIncompleteUploads接口内部可以查询到已经上传成功的分片信息，包括分片的序号以及对应的etag，我们可以通过此接口封装出查询上传成功的分片信息接口  
 
 具体流程如下：  
-![avatar](https://github.com/yuyuanshifu/minio-breakpoint-upload/blob/master/doc/%E6%96%B0%E6%96%B9%E6%A1%88%EF%BC%882020.09.09%EF%BC%89.png)
+![avatar](doc/%E6%96%B0%E6%96%B9%E6%A1%88%EF%BC%882020.09.09%EF%BC%89.png)
 
 
 ## 四、更新日志  
