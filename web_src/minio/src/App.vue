@@ -208,6 +208,7 @@
             loadNext();
             fileReader.onload = async (e) => {
               await uploadChunk(e);
+              fileReader.abort();
               currentChunk++;
         
               if (currentChunk < chunks) {
