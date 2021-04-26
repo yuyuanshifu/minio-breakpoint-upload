@@ -1,14 +1,10 @@
 package mysql
 
 import (
-	"encoding/base64"
-
-	"oss/config"
-	logger "oss/lib/log"
-	"oss/lib/rsa"
-
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
+	"oss/config"
+	logger "oss/lib/log"
 )
 
 type global struct {
@@ -18,17 +14,19 @@ type global struct {
 var Global global
 
 func init() {
-	enc,err := base64.StdEncoding.DecodeString(config.MysqlPassword)
-	if err != nil {
-		logger.LOG.Error("DecodeString failed:", err.Error())
-		return
-	}
+	//enc,err := base64.StdEncoding.DecodeString(config.MysqlPassword)
+	//if err != nil {
+	//	logger.LOG.Error("DecodeString failed:", err.Error())
+	//	return
+	//}
+	//
+	//dec,err := rsa.RsaDecrypt([]byte(enc))
+	//if err != nil {
+	//	logger.LOG.Error("RsaDecrypt failed:", err.Error())
+	//	return
+	//}
 
-	dec,err := rsa.RsaDecrypt([]byte(enc))
-	if err != nil {
-		logger.LOG.Error("RsaDecrypt failed:", err.Error())
-		return
-	}
+	dec := config.MysqlPassword
 
 	dbDriver := config.MysqlUsername + ":" + string(dec) + "@tcp(" + config.MysqlIp + ":" + config.MysqlPort + ")/" + config.MysqlDbName + "?charset=utf8&parseTime=True&loc=Local"
 	db, err := gorm.Open("mysql", dbDriver)

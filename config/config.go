@@ -1,16 +1,12 @@
 package config
 
-
 import (
-	"encoding/base64"
 	"errors"
 	"io/ioutil"
 	"os"
 
-	logger "oss/lib/log"
-	"oss/lib/rsa"
-
 	"github.com/json-iterator/go"
+	logger "oss/lib/log"
 )
 
 var MysqlIp string
@@ -52,27 +48,28 @@ func loadFromConfigFile(configFilePath string)error{
 	PORT = jsonConfig.Get("PORT").ToString()
 	MinioAddress = jsonConfig.Get("MINIO_ADDRESS").ToString()
 	MinioAccessKeyId = jsonConfig.Get("MINIO_ACCESS_KEY_ID").ToString()
-	keyTmp := jsonConfig.Get("MINIO_SECRET_ACCESS_KEY").ToString()
+	//keyTmp := jsonConfig.Get("MINIO_SECRET_ACCESS_KEY").ToString()
+	MinioSecretAccessKey := jsonConfig.Get("MINIO_SECRET_ACCESS_KEY").ToString()
 	MinioSecure = jsonConfig.Get("MINIO_SECURE").ToString()
 	MinioBucket = jsonConfig.Get("MINIO_BUCKET").ToString()
 	MinioBasePath = jsonConfig.Get("MINIO_BASE_PATH").ToString()
 	MinioLocation = jsonConfig.Get("MINIO_LOCATION").ToString()
 
-	if MysqlIp == "" || MysqlUsername == "" || MysqlPassword == "" || MysqlPort == "" || PORT == "" || MysqlDbName == "" || MinioAddress == "" || MinioAccessKeyId == "" || keyTmp == "" || MinioSecure == "" {
+	if MysqlIp == "" || MysqlUsername == "" || MysqlPassword == "" || MysqlPort == "" || PORT == "" || MysqlDbName == "" || MinioAddress == "" || MinioAccessKeyId == "" || MinioSecretAccessKey == "" || MinioSecure == "" {
 		return errors.New("config is error")
 	}
 
-	enc,err := base64.StdEncoding.DecodeString(keyTmp)
-	if err != nil {
-		return err
-	}
-
-	dec,err := rsa.RsaDecrypt([]byte(enc))
-	if err != nil {
-		return err
-	}
-
-	MinioSecretAccessKey = string(dec)
+	//enc,err := base64.StdEncoding.DecodeString(keyTmp)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//dec,err := rsa.RsaDecrypt([]byte(enc))
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//MinioSecretAccessKey = string(dec)
 
 	return nil
 }
