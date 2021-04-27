@@ -49,7 +49,7 @@ func loadFromConfigFile(configFilePath string)error{
 	MinioAddress = jsonConfig.Get("MINIO_ADDRESS").ToString()
 	MinioAccessKeyId = jsonConfig.Get("MINIO_ACCESS_KEY_ID").ToString()
 	//keyTmp := jsonConfig.Get("MINIO_SECRET_ACCESS_KEY").ToString()
-	MinioSecretAccessKey := jsonConfig.Get("MINIO_SECRET_ACCESS_KEY").ToString()
+	MinioSecretAccessKey = jsonConfig.Get("MINIO_SECRET_ACCESS_KEY").ToString()
 	MinioSecure = jsonConfig.Get("MINIO_SECURE").ToString()
 	MinioBucket = jsonConfig.Get("MINIO_BUCKET").ToString()
 	MinioBasePath = jsonConfig.Get("MINIO_BASE_PATH").ToString()
@@ -70,6 +70,7 @@ func loadFromConfigFile(configFilePath string)error{
 	//}
 	//
 	//MinioSecretAccessKey = string(dec)
+	logger.LOG.Info(MinioSecretAccessKey)
 
 	return nil
 }
