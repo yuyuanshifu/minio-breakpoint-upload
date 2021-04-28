@@ -70,7 +70,6 @@ func loadFromConfigFile(configFilePath string)error{
 	//}
 	//
 	//MinioSecretAccessKey = string(dec)
-	logger.LOG.Info(MinioSecretAccessKey)
 
 	return nil
 }
