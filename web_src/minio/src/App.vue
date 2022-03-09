@@ -136,6 +136,15 @@
             });
           }
 
+          async function uploadMinioNew(url,e){
+            var xhr = new XMLHttpRequest();
+            xhr.open('PUT', url, false);
+            xhr.setRequestHeader('Content-Type', 'text/plain')
+            xhr.send(e.target.result);
+            var etagValue = xhr.getResponseHeader('etag');
+            etags[currentChunk] = etagValue;
+          }
+
           function updateChunk(currentChunk) {
             return new Promise((resolve, reject) => {
                 axios.post(file.urlPrex + '/update_chunk', qs.stringify({
@@ -160,7 +169,7 @@
               await getUploadChunkUrl(currentChunk, partSize);
               if (urls[currentChunk] != "") {
                 //上传到minio
-                await uploadMinio(urls[currentChunk], e);
+                await uploadMinioNew(urls[currentChunk], e);
                 if (etags[currentChunk] != "") {
                   //更新数据库：分片上传结果
                   //await updateChunk(currentChunk);
