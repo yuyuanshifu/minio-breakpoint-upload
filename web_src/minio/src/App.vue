@@ -23,6 +23,9 @@
   import axios from 'axios'
   import qs from 'qs'
 
+  const chunkSize = 1024 * 1024 * 64;
+  const md5ChunkSize = 1024 * 1024 * 1;
+
   export default {
     data () {
       return {
@@ -83,7 +86,6 @@
         },
         multipartUpload(file) {
           let blobSlice = File.prototype.slice || File.prototype.mozSlice || File.prototype.webkitSlice,
-            chunkSize = 1024*1024*64,
             chunks = Math.ceil(file.size / chunkSize),
             currentChunk = 0,
             fileReader = new FileReader(),
@@ -238,7 +240,6 @@
         //计算MD5
         computeMD5(file) {
             let blobSlice = File.prototype.slice || File.prototype.mozSlice || File.prototype.webkitSlice,
-                chunkSize = 1024*1024*64,
                 chunks = Math.ceil(file.size / chunkSize),
                 currentChunk = 0,
                 spark = new SparkMD5.ArrayBuffer(),
@@ -249,7 +250,7 @@
             console.log('计算MD5...')
             this.status='计算MD5';
             file.totalChunkCounts = chunks;
-            loadNext();
+            loadMd5Next();
 
             fileReader.onload = (e) => {
                 spark.append(e.target.result);   // Append array buffer
@@ -274,9 +275,9 @@
                 file.cancel();
             };
          
-            function loadNext() {
+            function loadMd5Next() {
                 let start = currentChunk * chunkSize;
-                let end = ((start + chunkSize) >= file.size) ? file.size : start + chunkSize;
+                let end = ((start + md5ChunkSize) >= file.size) ? file.size : start + md5ChunkSize;
 
                 fileReader.readAsArrayBuffer(blobSlice.call(file.file, start, end));
             }
