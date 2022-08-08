@@ -10,7 +10,7 @@
     "build": "node build/build.js"
   },
   "dependencies": {
-    "axios": "^0.21.1",
+    "axios": "^0.21.2",
     "build": "^0.1.4",
     "spark-md5": "^3.0.1",
     "vue": "^2.5.2",
